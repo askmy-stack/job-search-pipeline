@@ -9,10 +9,14 @@
  * Automatic fallback: If Ollama unavailable → use Anthropic API
  */
 
+const crypto = require('crypto');
 const http = require('http');
 const https = require('https');
 
 const OLLAMA_URL = 'http://localhost:11434';
+const BRIDGE_API_KEY = process.env.BRIDGE_API_KEY || '';
+const BRIDGE_PORT = parseInt(process.env.BRIDGE_PORT || '8787', 10);
+const BRIDGE_HOST = process.env.BRIDGE_HOST || '127.0.0.1';
 const OLLAMA_MODEL = 'gemma4:27b';
 const OLLAMA_TIMEOUT = 30000; // 30s timeout for local inference
 
@@ -197,6 +201,103 @@ async function routeRequest(mode, input, options = {}) {
 }
 
 /**
+ * Validate bridge API key when BRIDGE_API_KEY is configured.
+ * Accepts X-Bridge-Api-Key header or Authorization: Bearer <key>.
+ */
+function isBridgeAuthorized(req) {
+  if (!BRIDGE_API_KEY) return true;
+
+  const headerKey = req.headers['x-bridge-api-key'];
+  const authHeader = req.headers.authorization || '';
+  const bearerKey = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+  const provided = headerKey || bearerKey;
+
+  if (!provided || provided.length !== BRIDGE_API_KEY.length) return false;
+
+  return crypto.timingSafeEqual(
+    Buffer.from(provided),
+    Buffer.from(BRIDGE_API_KEY)
+  );
+}
+
+function sendJson(res, statusCode, body) {
+  res.writeHead(statusCode, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify(body));
+}
+
+function readJsonBody(req) {
+  return new Promise((resolve, reject) => {
+    let data = '';
+    req.on('data', (chunk) => {
+      data += chunk;
+      if (data.length > 1_000_000) {
+        reject(new Error('Request body too large'));
+        req.destroy();
+      }
+    });
+    req.on('end', () => {
+      if (!data) return resolve({});
+      try {
+        resolve(JSON.parse(data));
+      } catch (error) {
+        reject(new Error('Invalid JSON body'));
+      }
+    });
+    req.on('error', reject);
+  });
+}
+
+/**
+ * Local HTTP server exposing routeRequest to other tools on the same machine.
+ * When BRIDGE_API_KEY is set, all endpoints require authentication.
+ */
+function createBridgeServer() {
+  return http.createServer(async (req, res) => {
+    if (!isBridgeAuthorized(req)) {
+      return sendJson(res, 401, { error: 'Unauthorized' });
+    }
+
+    if (req.method === 'GET' && req.url === '/health') {
+      const ollamaAvailable = await isOllamaAvailable();
+      return sendJson(res, 200, { ok: true, ollamaAvailable, authRequired: Boolean(BRIDGE_API_KEY) });
+    }
+
+    if (req.method === 'POST' && req.url === '/route') {
+      try {
+        const body = await readJsonBody(req);
+        const { mode, input, options = {} } = body;
+
+        if (!mode || typeof input !== 'string') {
+          return sendJson(res, 400, { error: 'mode and input (string) are required' });
+        }
+
+        const result = await routeRequest(mode, input, options);
+        return sendJson(res, 200, result);
+      } catch (error) {
+        return sendJson(res, 500, { error: error.message });
+      }
+    }
+
+    return sendJson(res, 404, { error: 'Not found' });
+  });
+}
+
+function startBridgeServer(options = {}) {
+  const host = options.host || BRIDGE_HOST;
+  const port = options.port || BRIDGE_PORT;
+  const server = createBridgeServer();
+
+  return new Promise((resolve, reject) => {
+    server.listen(port, host, () => {
+      const authStatus = BRIDGE_API_KEY ? 'required' : 'disabled (set BRIDGE_API_KEY to enable)';
+      console.log(`Bridge listening on http://${host}:${port} (auth: ${authStatus})`);
+      resolve(server);
+    });
+    server.on('error', reject);
+  });
+}
+
+/**
  * Example usage
  */
 async function example() {
@@ -217,13 +318,26 @@ async function example() {
 module.exports = {
   routeRequest,
   isOllamaAvailable,
+  isBridgeAuthorized,
   callOllama,
   callAnthropic,
+  createBridgeServer,
+  startBridgeServer,
   OLLAMA_TASKS,
-  ANTHROPIC_TASKS
+  ANTHROPIC_TASKS,
+  BRIDGE_API_KEY,
+  BRIDGE_PORT,
+  BRIDGE_HOST
 };
 
 // Run example if called directly
 if (require.main === module) {
-  example();
+  if (process.argv.includes('--server')) {
+    startBridgeServer().catch((error) => {
+      console.error('Failed to start bridge server:', error.message);
+      process.exit(1);
+    });
+  } else {
+    example();
+  }
 }
