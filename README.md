@@ -23,9 +23,24 @@ Written in Go. Runs locally for privacy-sensitive operations (parsing resumes, r
 git clone https://github.com/askmy-stack/job-search-pipeline.git
 cd job-search-pipeline
 go mod download
-cp .env.example .env  # add ANTHROPIC_API_KEY
+cp .env.example .env  # add ANTHROPIC_API_KEY (and optional BRIDGE_API_KEY)
 go run main.go
 ```
+
+### API bridge (optional)
+
+The hybrid Ollama/Anthropic router can run as a local HTTP server:
+
+```bash
+cp .env.example .env
+# Set BRIDGE_API_KEY to require X-Bridge-Api-Key on /route and /health
+node ollama-config/api-bridge.js --server
+```
+
+When `BRIDGE_API_KEY` is unset, the bridge accepts unauthenticated requests
+(local development only). Set a key before exposing the bridge beyond localhost.
+
+See [SECURITY.md](SECURITY.md) for PII handling and responsible disclosure.
 
 ## What I learned
 
