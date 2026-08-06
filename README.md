@@ -1,55 +1,59 @@
 # job-search-pipeline
 
-> Personal AI-powered job search automation with hybrid local Ollama + Anthropic API architecture.
+Personal AI-powered job search automation using a **hybrid local Ollama + Anthropic** architecture.
 
-Written in Go. Runs locally for privacy-sensitive operations (parsing resumes, ranking listings) and reaches out to Anthropic only for higher-reasoning tasks (cover letter drafting, fit analysis).
+Forked and customized from [santifer/career-ops](https://github.com/santifer/career-ops). Discovery and tracking run on local Ollama (near-zero cost); evaluation and drafting use the Anthropic API.
 
-## What it does
-
-- Scrapes job listings from configured boards
-- Extracts structured fields with local Ollama (privacy-preserving)
-- Routes complex reasoning (fit assessment, cover letter drafts) to Anthropic API
-- Persists results locally for review
+> Looking for the deep hybrid guide? See **[README-HYBRID.md](README-HYBRID.md)**.
 
 ## Stack
 
-- **Language:** Go
-- **LLMs:** Ollama (local) · Anthropic API
-- **Storage:** Local filesystem / SQLite
+| Layer | Tech |
+|-------|------|
+| Pipeline scripts | **Node.js** (`.mjs` / Claude Code modes) |
+| Local LLM | **Ollama** (`OLLAMA_MODEL`, default `gemma4:27b`) |
+| Cloud LLM | **Anthropic API** (fit analysis, cover letters, deep eval) |
+| Dashboard TUI | **Go** (`dashboard/`) |
+| Config | `.env`, `config/profile.yml` (gitignored), YAML templates |
 
-## Setup
+There is **no** root `main.go` — the Go entrypoint lives under `dashboard/`.
+
+## Quick start
 
 ```bash
 git clone https://github.com/askmy-stack/job-search-pipeline.git
 cd job-search-pipeline
-go mod download
-cp .env.example .env  # add ANTHROPIC_API_KEY (and optional BRIDGE_API_KEY)
-go run main.go
+npm install
+cp .env.example .env          # set ANTHROPIC_API_KEY; optional OLLAMA_* / BRIDGE_*
+cp examples/cv-example.md cv.md   # personal CV — gitignored, never commit
+cp config/profile.example.yml config/profile.yml  # if present
+
+# Optional local inference
+brew install ollama && ollama pull gemma4:27b && ollama serve
 ```
 
-### API bridge (optional)
-
-The hybrid Ollama/Anthropic router can run as a local HTTP server:
+Useful scripts (`package.json`):
 
 ```bash
-cp .env.example .env
-# Set BRIDGE_API_KEY to require X-Bridge-Api-Key on /route and /health
-node ollama-config/api-bridge.js --server
+npm run verify       # pipeline integrity checks
+npm run sync-check   # CV / profile consistency
+npm run normalize    # canonicalize statuses
+node ollama-config/api-bridge.js --server   # optional hybrid HTTP bridge
 ```
 
-When `BRIDGE_API_KEY` is unset, the bridge accepts unauthenticated requests
-(local development only). Set a key before exposing the bridge beyond localhost.
+Go dashboard (from `dashboard/`):
 
-See [SECURITY.md](SECURITY.md) for PII handling and responsible disclosure.
+```bash
+cd dashboard && go run .
+```
 
-## What I learned
+## Personal data
 
-Hybrid local + cloud agent design keeps cost low and privacy high while still benefiting from frontier-model reasoning where it matters. Ollama is fast enough on consumer hardware for the structured-extraction parts.
+- Use `examples/cv-example.md` as a template; keep real `cv.md` local (gitignored).
+- See [SECURITY.md](SECURITY.md) for PII rules and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE).
 
----
-
-Built by [Abhinaysai Kamineni](https://github.com/askmy-stack)
+Built by [Abhinaysai Kamineni](https://github.com/askmy-stack).
