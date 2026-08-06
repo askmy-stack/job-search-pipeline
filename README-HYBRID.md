@@ -26,6 +26,8 @@ Save 60-70% on API tokens. Run unlimited job discovery locally. Keep premium rea
 git clone https://github.com/askmy-stack/job-search-pipeline.git
 cd job-search-pipeline
 npm install  # Install dependencies
+cp .env.example .env  # ANTHROPIC_API_KEY, optional OLLAMA_MODEL / BRIDGE_API_KEY
+cp examples/cv-example.md cv.md  # local only — gitignored
 ```
 
 ### 2. Install Ollama (One-time)
