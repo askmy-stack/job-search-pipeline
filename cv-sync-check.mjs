@@ -20,10 +20,17 @@ const projectRoot = __dirname;
 const warnings = [];
 const errors = [];
 
-// 1. Check cv.md exists
+// 1. Check cv.md exists (local only — copy from examples/cv-example.md)
 const cvPath = join(projectRoot, 'cv.md');
+const cvExamplePath = join(projectRoot, 'examples', 'cv-example.md');
 if (!existsSync(cvPath)) {
-  errors.push('cv.md not found in project root. Create it with your CV in markdown format.');
+  if (existsSync(cvExamplePath)) {
+    warnings.push(
+      'cv.md not found (expected for a clean clone). Copy examples/cv-example.md → cv.md and fill in your details. cv.md is gitignored.'
+    );
+  } else {
+    errors.push('cv.md not found and examples/cv-example.md is missing.');
+  }
 } else {
   const cvContent = readFileSync(cvPath, 'utf-8');
   if (cvContent.trim().length < 100) {
