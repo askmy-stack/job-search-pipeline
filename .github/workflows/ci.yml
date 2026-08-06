@@ -6,10 +6,16 @@ on:
   pull_request:
     branches: [main]
 
+# Avoid stacking cancelled/failed checks when Actions is degraded.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   verify-pipeline:
     name: Verify pipeline (Node)
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
 
@@ -17,15 +23,14 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Install dependencies
-        run: npm install
-
+      # verify-pipeline.mjs is stdlib-only. Playwright is only needed for generate-pdf.mjs.
       - name: Run verify-pipeline.mjs
-        run: npm run verify
+        run: node verify-pipeline.mjs
 
   go-test:
     name: Go test (dashboard)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: dashboard
