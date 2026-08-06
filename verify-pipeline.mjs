@@ -10,6 +10,7 @@
  * 5. All rows have proper pipe-delimited format
  * 6. No pending TSVs in tracker-additions/ (only in merged/ or archived/)
  * 7. states.yml canonical IDs for cross-system consistency
+ * 8. No markdown bold in scores
  *
  * Run: node career-ops/verify-pipeline.mjs
  */
@@ -27,6 +28,39 @@ const REPORTS_DIR = join(CAREER_OPS, 'reports');
 const STATES_FILE = existsSync(join(CAREER_OPS, 'templates/states.yml'))
   ? join(CAREER_OPS, 'templates/states.yml')
   : join(CAREER_OPS, 'states.yml');
+
+
+function loadStatesYaml(path) {
+  if (!existsSync(path)) return null;
+  const raw = readFileSync(path, 'utf-8');
+  const ids = [];
+  const labels = [];
+  const aliases = {};
+  let currentId = null;
+  for (const line of raw.split('\n')) {
+    const idMatch = line.match(/^\\s*-\\s*id:\\s*(\\S+)\\s*$/);
+    if (idMatch) {
+      currentId = idMatch[1];
+      ids.push(currentId);
+      continue;
+    }
+    const labelMatch = line.match(/^\\s*label:\\s*(.+)\\s*$/);
+    if (labelMatch && currentId) {
+      labels.push(labelMatch[1].trim());
+      continue;
+    }
+    const aliasMatch = line.match(/^\\s*aliases:\\s*\\[(.*)\\]\\s*$/);
+    if (aliasMatch && currentId) {
+      for (const part of aliasMatch[1].split(',')) {
+        const a = part.trim().replace(/^\\[|\\]$/g, '');
+        if (a) aliases[a.toLowerCase()] = currentId;
+      }
+    }
+  }
+  return { ids, labels, aliases };
+}
+
+const STATES = loadStatesYaml(STATES_FILE);
 
 const CANONICAL_STATUSES = [
   'evaluada', 'aplicado', 'respondido', 'entrevista',
@@ -163,7 +197,48 @@ if (existsSync(ADDITIONS_DIR)) {
 }
 if (pendingTsvs === 0) ok('No pending TSVs');
 
-// --- Check 7: Bold in scores ---
+// --- Check 7: states.yml canonical IDs ---
+let statesIssues = 0;
+if (!STATES || STATES.ids.length === 0) {
+  warn('states.yml not found or empty — skipping canonical ID cross-check');
+  statesIssues++;
+} else {
+  const requiredIds = [
+    'evaluated', 'applied', 'responded', 'interview',
+    'offer', 'rejected', 'discarded', 'skip',
+  ];
+  for (const id of requiredIds) {
+    if (!STATES.ids.includes(id)) {
+      error(`states.yml missing required id: ${id}`);
+      statesIssues++;
+    }
+  }
+  // Every hardcoded Spanish/English status must map to a states.yml id or alias
+  for (const status of CANONICAL_STATUSES) {
+    const lower = status.toLowerCase();
+    const mapped =
+      STATES.ids.includes(lower) ||
+      STATES.labels.some((l) => l.toLowerCase() === lower) ||
+      Object.prototype.hasOwnProperty.call(STATES.aliases, lower) ||
+      Object.prototype.hasOwnProperty.call(ALIASES, lower);
+    if (!mapped) {
+      error(`Status "${status}" used in pipeline is not defined in states.yml`);
+      statesIssues++;
+    }
+  }
+  // Alias map consistency: ALIASES values must be canonical statuses
+  for (const [alias, target] of Object.entries(ALIASES)) {
+    if (!CANONICAL_STATUSES.includes(target)) {
+      error(`ALIAS "${alias}" → "${target}" is not a canonical status`);
+      statesIssues++;
+    }
+  }
+  if (statesIssues === 0) {
+    ok(`states.yml OK (${STATES.ids.length} ids, ${Object.keys(STATES.aliases).length} aliases)`);
+  }
+}
+
+// --- Check 8: Bold in scores ---
 let boldScores = 0;
 for (const e of entries) {
   if (e.score.includes('**')) {
