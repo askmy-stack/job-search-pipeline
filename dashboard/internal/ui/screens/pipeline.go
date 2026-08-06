@@ -9,9 +9,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/santifer/career-ops/dashboard/internal/data"
-	"github.com/santifer/career-ops/dashboard/internal/model"
-	"github.com/santifer/career-ops/dashboard/internal/theme"
+	"github.com/askmy-stack/job-search-pipeline/dashboard/internal/data"
+	"github.com/askmy-stack/job-search-pipeline/dashboard/internal/model"
+	"github.com/askmy-stack/job-search-pipeline/dashboard/internal/theme"
 )
 
 // PipelineClosedMsg is emitted when the pipeline screen is dismissed.
