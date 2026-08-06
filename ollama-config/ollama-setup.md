@@ -292,3 +292,13 @@ Real benefit: Never hit API token limits on exploration
 5. **Monitor:** Check logs to verify routing
 
 See `HYBRID-ARCHITECTURE.md` for implementation details.
+
+## Environment overrides
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `OLLAMA_HOST` | `127.0.0.1:11434` | Ollama HTTP host (or full URL) |
+| `OLLAMA_MODEL` | `gemma4:27b` | Model name passed to `/api/generate` |
+| `OLLAMA_TIMEOUT` | `30000` | Request timeout in milliseconds |
+
+Set these in `.env` (see `.env.example`) before starting `api-bridge.js`.
