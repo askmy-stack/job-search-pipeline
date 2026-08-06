@@ -27,8 +27,9 @@ confidential.
 - API keys, tokens, or `.env` files
 
 The repository ships **example and template files only**. Copy templates locally
-(`config/profile.example.yml`, `templates/portals.example.yml`) and keep your
-real data in gitignored paths listed in `.gitignore`.
+(`examples/cv-example.md` → `cv.md`, `config/profile.example.yml`,
+`templates/portals.example.yml`) and keep your real data in gitignored paths
+listed in `.gitignore`. Never commit a real `cv.md`.
 
 Before pushing or opening a pull request:
 
