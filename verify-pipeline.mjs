@@ -38,21 +38,21 @@ function loadStatesYaml(path) {
   const aliases = {};
   let currentId = null;
   for (const line of raw.split('\n')) {
-    const idMatch = line.match(/^\\s*-\\s*id:\\s*(\\S+)\\s*$/);
+    const idMatch = line.match(/^\s*-\s*id:\s*(\S+)\s*$/);
     if (idMatch) {
       currentId = idMatch[1];
       ids.push(currentId);
       continue;
     }
-    const labelMatch = line.match(/^\\s*label:\\s*(.+)\\s*$/);
+    const labelMatch = line.match(/^\s*label:\s*(.+)\s*$/);
     if (labelMatch && currentId) {
       labels.push(labelMatch[1].trim());
       continue;
     }
-    const aliasMatch = line.match(/^\\s*aliases:\\s*\\[(.*)\\]\\s*$/);
+    const aliasMatch = line.match(/^\s*aliases:\s*\[(.*)\]\s*$/);
     if (aliasMatch && currentId) {
       for (const part of aliasMatch[1].split(',')) {
-        const a = part.trim().replace(/^\\[|\\]$/g, '');
+        const a = part.trim().replace(/^\[|\]$/g, '');
         if (a) aliases[a.toLowerCase()] = currentId;
       }
     }
@@ -81,12 +81,28 @@ function error(msg) { console.log(`❌ ${msg}`); errors++; }
 function warn(msg) { console.log(`⚠️  ${msg}`); warnings++; }
 function ok(msg) { console.log(`✅ ${msg}`); }
 
-// --- Read applications.md ---
+// --- Fresh clone: still validate states.yml ---
 if (!existsSync(APPS_FILE)) {
   console.log('\n📊 No applications.md found. This is normal for a fresh setup.');
-  console.log('   The file will be created when you evaluate your first offer.\n');
-  process.exit(0);
+  console.log('   Running states.yml canonical ID check only.\n');
+  if (!STATES || STATES.ids.length === 0) {
+    error('states.yml not found or empty');
+  } else {
+    const requiredIds = [
+      'evaluated', 'applied', 'responded', 'interview',
+      'offer', 'rejected', 'discarded', 'skip',
+    ];
+    for (const id of requiredIds) {
+      if (!STATES.ids.includes(id)) error(`states.yml missing required id: ${id}`);
+    }
+    if (errors === 0) ok(`states.yml OK (${STATES.ids.length} ids, ${Object.keys(STATES.aliases).length} aliases)`);
+  }
+  console.log('\n' + '='.repeat(50));
+  console.log(`📊 Pipeline Health: ${errors} errors, ${warnings} warnings`);
+  process.exit(errors > 0 ? 1 : 0);
 }
+
+// --- Read applications.md ---
 const content = readFileSync(APPS_FILE, 'utf-8');
 const lines = content.split('\n');
 
