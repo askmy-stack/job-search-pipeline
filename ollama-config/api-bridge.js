@@ -297,6 +297,7 @@ function startBridgeServer(options = {}) {
 
   return new Promise((resolve, reject) => {
     server.listen(port, host, () => {
+    console.log(`Ollama → model=${OLLAMA_MODEL} url=${OLLAMA_URL}`);
       const authStatus = BRIDGE_API_KEY ? 'required' : 'disabled (set BRIDGE_API_KEY to enable)';
       console.log(`Bridge listening on http://${host}:${port} (auth: ${authStatus})`);
       resolve(server);
