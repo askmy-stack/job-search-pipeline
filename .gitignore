@@ -33,3 +33,7 @@ Thumbs.db
 # Build artifacts
 *.pdf
 *.tmp
+
+# Personal CV (never commit real résumés)
+cv.md
+article-digest.md

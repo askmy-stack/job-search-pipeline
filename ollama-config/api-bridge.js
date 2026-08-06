@@ -13,12 +13,20 @@ const crypto = require('crypto');
 const http = require('http');
 const https = require('https');
 
-const OLLAMA_URL = 'http://localhost:11434';
+function resolveOllamaUrl(raw) {
+  const host = (raw || '127.0.0.1:11434').trim();
+  if (host.startsWith('http://') || host.startsWith('https://')) {
+    return host.replace(/\/$/, '');
+  }
+  return `http://${host}`;
+}
+
+const OLLAMA_URL = resolveOllamaUrl(process.env.OLLAMA_HOST);
 const BRIDGE_API_KEY = process.env.BRIDGE_API_KEY || '';
 const BRIDGE_PORT = parseInt(process.env.BRIDGE_PORT || '8787', 10);
 const BRIDGE_HOST = process.env.BRIDGE_HOST || '127.0.0.1';
-const OLLAMA_MODEL = 'gemma4:27b';
-const OLLAMA_TIMEOUT = 30000; // 30s timeout for local inference
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'gemma4:27b';
+const OLLAMA_TIMEOUT = parseInt(process.env.OLLAMA_TIMEOUT || '30000', 10);
 
 // Task routing configuration
 const OLLAMA_TASKS = ['fresh', 'scan', 'tracker', 'training'];
@@ -289,6 +297,7 @@ function startBridgeServer(options = {}) {
 
   return new Promise((resolve, reject) => {
     server.listen(port, host, () => {
+    console.log(`Ollama → model=${OLLAMA_MODEL} url=${OLLAMA_URL}`);
       const authStatus = BRIDGE_API_KEY ? 'required' : 'disabled (set BRIDGE_API_KEY to enable)';
       console.log(`Bridge listening on http://${host}:${port} (auth: ${authStatus})`);
       resolve(server);
