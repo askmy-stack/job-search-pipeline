@@ -23,7 +23,7 @@ There is **no** root `main.go` — the Go entrypoint lives under `dashboard/`.
 ```bash
 git clone https://github.com/askmy-stack/job-search-pipeline.git
 cd job-search-pipeline
-npm install
+npm install   # Playwright optional — only needed for `npm run pdf`
 cp .env.example .env          # set ANTHROPIC_API_KEY; optional OLLAMA_* / BRIDGE_*
 cp examples/cv-example.md cv.md   # personal CV — gitignored, never commit
 cp config/profile.example.yml config/profile.yml  # if present
